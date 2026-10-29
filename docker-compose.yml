@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: afterset
+      POSTGRES_PASSWORD: afterset
+      POSTGRES_DB: afterset
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Scripts here run once, on first start of an empty data volume.
+      # To re-apply the schema: docker compose down -v && docker compose up -d
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U afterset -d afterset"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

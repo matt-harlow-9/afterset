@@ -53,4 +53,25 @@ sets -> track_entries -> tracks -> artists
 
 ## Commands
 
-Nothing is scaffolded yet. When `apps/web` exists, document install, dev, test, and lint commands here.
+Local database (from the repo root):
+
+```
+docker compose up -d        # Postgres 16; loads db/migrations on first start
+docker compose down -v      # wipe the volume so the schema is re-applied
+```
+
+Web app (from `apps/web`):
+
+```
+cp ../../.env.example .env.local
+npm install
+npm run dev                 # http://localhost:3000, health check at /api/health
+npm run lint
+npm run build
+```
+
+## Next.js notes
+
+`apps/web` uses Next.js 16 (App Router, Turbopack, Cache Components enabled), which differs from older versions. Check the bundled docs in `apps/web/node_modules/next/dist/docs/` before writing framework-level code.
+
+`next/font/google` fetches fonts at build time, so `npm run build` needs outbound network access to fonts.googleapis.com.

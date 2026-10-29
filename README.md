@@ -39,11 +39,25 @@ Out for now:
 ## Repo layout
 
 ```
-apps/web/   Next.js application (not yet scaffolded)
-db/         SQL schema and migrations
-docs/       Design notes
+apps/web/           Next.js application
+db/migrations/      Numbered SQL migrations
+db/schema.sql       Current full schema snapshot
+docker-compose.yml  Local Postgres
+docs/               Design notes
 ```
+
+## Getting started
+
+```
+docker compose up -d
+cd apps/web
+cp ../../.env.example .env.local
+npm install
+npm run dev
+```
+
+Then open http://localhost:3000. `/api/health` reports whether the app can reach the database.
 
 ## Status
 
-Early planning. The data model lives in `db/schema.sql` and is described in `CLAUDE.md`.
+Early development. The app is a placeholder page plus a health check; the data model lives in `db/schema.sql` and is described in `CLAUDE.md`.
