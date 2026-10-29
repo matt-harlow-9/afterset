@@ -1,0 +1,30 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+.next/
+out/
+dist/
+build/
+
+# env and secrets
+.env
+.env.*
+!.env.example
+
+# logs and OS cruft
+*.log
+npm-debug.log*
+.DS_Store
+
+# editor
+.vscode/
+.idea/
+
+# coverage
+coverage/
+
+# local databases
+*.sqlite
+pgdata/
