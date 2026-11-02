@@ -9,6 +9,8 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { db } from "@/lib/db";
 
+const resendKey = process.env.AUTH_RESEND_KEY ?? process.env.RESEND_API_KEY;
+
 const providers: Provider[] = [
   Credentials({
     credentials: { email: {}, password: {} },
@@ -28,17 +30,15 @@ const providers: Provider[] = [
 ];
 
 // Optional providers: only enabled when configured, so local dev works with nothing set.
-if (process.env.AUTH_RESEND_KEY) {
-  providers.push(
-    Resend({ apiKey: process.env.AUTH_RESEND_KEY, from: process.env.EMAIL_FROM }),
-  );
+if (resendKey) {
+  providers.push(Resend({ apiKey: resendKey, from: process.env.EMAIL_FROM }));
 }
 if (process.env.AUTH_GOOGLE_ID) providers.push(Google({ allowDangerousEmailAccountLinking: true }));
 if (process.env.AUTH_SPOTIFY_ID) providers.push(Spotify({ allowDangerousEmailAccountLinking: true }));
 // Apple: add once an Apple Developer account exists (requires paid membership).
 
 export const enabledProviders = {
-  magicLink: !!process.env.AUTH_RESEND_KEY,
+  magicLink: !!resendKey,
   google: !!process.env.AUTH_GOOGLE_ID,
   spotify: !!process.env.AUTH_SPOTIFY_ID,
 };
