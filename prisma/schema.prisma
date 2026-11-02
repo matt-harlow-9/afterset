@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  MODERATOR
+  ADMIN
+}
+
+enum EmbedProvider {
+  SOUNDCLOUD
+  YOUTUBE
+  MIXCLOUD
+  OTHER
+}
+
+enum EntryStatus {
+  UNIDENTIFIED // a gap someone wants identified ("ID this")
+  PROPOSED     // someone suggested a track, awaiting votes
+  VERIFIED     // community threshold reached
+  CONFIRMED    // confirmed by admin/artist
+  REJECTED
+}
+
+// ---------- Auth.js ----------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  username      String?   @unique
+  passwordHash  String?
+  role          Role      @default(USER)
+  reputation    Int       @default(0)
+  createdAt     DateTime  @default(now())
+
+  accounts   Account[]
+  sessions   Session[]
+  sets       DjSet[]
+  entries    TracklistEntry[] @relation("EntrySubmitter")
+  votes      Vote[]
+  follows    ArtistFollow[]
+  trackedIds TrackedEntry[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------- Domain ----------
+
+model Artist {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  mbid      String?  @unique // MusicBrainz id, for later
+  createdAt DateTime @default(now())
+
+  sets      DjSet[]
+  followers ArtistFollow[]
+}
+
+model ArtistFollow {
+  userId    String
+  artistId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  artist Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
+  @@id([userId, artistId])
+}
+
+model DjSet {
+  id          String        @id @default(cuid())
+  title       String
+  slug        String        @unique
+  artistId    String
+  eventName   String? // festival / venue / radio show
+  playedAt    DateTime?
+  embedUrl    String
+  provider    EmbedProvider @default(OTHER)
+  durationSec Int?
+  createdById String
+  createdAt   DateTime      @default(now())
+
+  artist    Artist           @relation(fields: [artistId], references: [id])
+  createdBy User             @relation(fields: [createdById], references: [id])
+  entries   TracklistEntry[]
+
+  @@index([artistId])
+  @@index([createdAt])
+}
+
+model TracklistEntry {
+  id             String      @id @default(cuid())
+  setId          String
+  position       Int
+  startSec       Int? // timestamp in the set
+  artistName     String?
+  title          String?
+  label          String?
+  status         EntryStatus @default(UNIDENTIFIED)
+  score          Int         @default(0) // cached sum of votes
+  submittedById  String?
+  createdAt      DateTime    @default(now())
+  identifiedAt   DateTime?
+
+  set         DjSet         @relation(fields: [setId], references: [id], onDelete: Cascade)
+  submittedBy User?         @relation("EntrySubmitter", fields: [submittedById], references: [id])
+  votes       Vote[]
+  tracked     TrackedEntry[]
+
+  @@index([setId, position])
+}
+
+model Vote {
+  userId  String
+  entryId String
+  value   Int // +1 or -1
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entry TracklistEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@id([userId, entryId])
+}
+
+// A user "tracks" an unidentified entry and is notified when it is identified.
+model TrackedEntry {
+  userId     String
+  entryId    String
+  notifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entry TracklistEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@id([userId, entryId])
+}
