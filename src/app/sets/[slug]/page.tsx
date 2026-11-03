@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { parseEmbed, formatTimestamp } from "@/lib/embed";
+import { parseEmbed } from "@/lib/embed";
+import { PlayerProvider, SetPlayer, Timecode, NowMarker, AddEntryForm } from "@/components/player";
 import { addEntry, proposeId, vote, toggleTrack, confirmEntry } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
@@ -35,23 +36,24 @@ export default async function SetPage({ params }: PageProps<"/sets/[slug]">) {
   const src = parseEmbed(set.embedUrl).src;
   const isMod = session?.user?.role === "ADMIN" || session?.user?.role === "MODERATOR";
 
+  const timeline = set.entries.map((e) => ({
+    id: e.id,
+    startSec: e.startSec,
+    status: e.status,
+    label: e.title ? `${e.artistName} – ${e.title}` : "ID?",
+  }));
+  const starts = [...new Set(set.entries.map((e) => e.startSec).filter((v): v is number => v != null))].sort((a, b) => a - b);
+  const nextStart = (s: number | null) => (s == null ? null : (starts.find((v) => v > s) ?? null));
+
   return (
+    <PlayerProvider>
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-semibold">{set.title}</h1>
         <p className="text-muted">{set.artist.name}{set.eventName ? ` · ${set.eventName}` : ""}</p>
       </header>
 
-      {src && (
-        <iframe
-          src={src}
-          title={set.title}
-          className="w-full rounded-lg border border-border"
-          style={{ height: set.provider === "YOUTUBE" ? 400 : 166 }}
-          allow="autoplay; encrypted-media"
-          loading="lazy"
-        />
-      )}
+      {src && <SetPlayer provider={set.provider} src={src} title={set.title} entries={timeline} />}
 
       <section className="space-y-2">
         <h2 className="text-sm font-medium uppercase tracking-wider text-muted">Tracklist</h2>
@@ -63,7 +65,8 @@ export default async function SetPage({ params }: PageProps<"/sets/[slug]">) {
           return (
             <div key={e.id} className="rounded-lg border border-border bg-card p-3">
               <div className="flex items-center gap-3">
-                <span className="w-14 font-mono text-sm text-muted">{formatTimestamp(e.startSec)}</span>
+                <Timecode sec={e.startSec} />
+                <NowMarker start={e.startSec} end={nextStart(e.startSec)} />
                 <div className="flex-1">
                   {open ? (
                     <span className="text-muted">ID?</span>
@@ -111,17 +114,12 @@ export default async function SetPage({ params }: PageProps<"/sets/[slug]">) {
       {userId ? (
         <section className="space-y-2">
           <h2 className="text-sm font-medium uppercase tracking-wider text-muted">Add a track</h2>
-          <form action={addEntry.bind(null, set.id)} className="grid grid-cols-[5rem_1fr_1fr_auto] gap-2">
-            <input name="time" placeholder="0:00" className="input font-mono" />
-            <input name="artistName" placeholder="Artist (blank = unknown)" className="input" />
-            <input name="title" placeholder="Title (blank = unknown)" className="input" />
-            <button className="btn">Add</button>
-          </form>
-          <p className="text-xs text-muted">Leave artist and title empty to flag a moment that needs an ID.</p>
+          <AddEntryForm action={addEntry.bind(null, set.id)} />
         </section>
       ) : (
         <p className="text-sm text-muted">Log in to add tracks, vote, and track IDs.</p>
       )}
     </div>
+    </PlayerProvider>
   );
 }
